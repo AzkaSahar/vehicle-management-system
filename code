@@ -1,0 +1,723 @@
+------------------------------------------------------------
+;made by 3 members
+;
+;to save the records in the file, ensure you select option 4 (Show Record).
+;as the file operates in append mode in record procedure, this action ensures proper recording of the data
+INCLUDE Irvine32.inc
+include macros.inc
+.data
+
+;---------------- For Filing -----------------------
+
+BUFFER_SIZE = 250
+buffer BYTE BUFFER_SIZE DUP(?) 
+filename BYTE "myFile.txt",0
+fileHandle HANDLE ?
+fileMode    DWORD   GENERIC_WRITE; or GENERIC_READ, 0, 0, 2 ; Append mode
+linechange byte 0Dh,0Ah,0
+;---------------- Printing Statements -----------------------
+
+menu BYTE "****** MENU ********",0ah,0ah
+
+menu0 BYTE ' Press ( 0 / Enter ) to Clear Screen ',0ah,0ah
+menu1 BYTE ' Press 1 for Rikshaw ',0ah
+menu2 BYTE ' Press 2 for Cars ',0ah
+menu3 BYTE ' Press 3 for Bus ',0ah
+menu4 BYTE ' Press 4 to Show the Record ',0ah
+menu5 BYTE ' Press 5 to Clear the Records ',0ah
+m3 BYTE    ' Press 6 to Remove Vehicle ',0ah
+menu6 BYTE ' Press 7 to Exit ',0
+
+
+my0 BYTE " (1) Remove a Rikshaw",0ah
+my1 BYTE " (2) Remove a Car ",0ah
+my2 BYTE " (3) Remove a Bus ",0ah
+ml BYTE " (4) Return to Menu ",0
+
+str1 BYTE " ERROR in File ",0
+str2 BYTE "	 --- Enter User Data --- ",0ah,0ah
+str3 BYTE " --> Your Name : ",0
+str4 BYTE " Welcome ,  ",0
+
+msg0 BYTE ' --> Parking Is Full',0
+msg1 BYTE ' --> Wrong input',0
+
+m1 BYTE "* Clear Screen *",0
+m2 BYTE "Press OK to Clear Screen ",0
+my3 BYTE "--> Vehicle Removed Successfully ",0
+my4 BYTE "--> Vehicle isn't Parked ",0
+
+msg2 BYTE ' Rikshaw	',0
+msg3 BYTE ' Car	',0
+msg4 BYTE ' Bus	',0
+msg5 BYTE '	--- Record --- ',0
+
+p1 BYTE 'Parking Fee : ',0
+p2 BYTE 'Vehicle : ',0
+p3 BYTE 'COUNT : ',0
+p4 BYTE ' ---> Total Capacity : 10 Vehicles ',0ah,0
+
+msg6 BYTE ' The Total Amount is : $',0
+msg7 BYTE ' The Total Numbers of Vehicles Parked : ',0
+msg8 BYTE ' The Total Number of Rikshws Parked : ',0
+msg9 BYTE ' The Total Number of Cars Parked : ',0
+msg10 BYTE ' The Total Number of Buses Parked : ',0
+
+Choose BYTE "Enter Choice : ",0
+msg12 BYTE ' * Records Deleted Successfully * ',0
+final BYTE " --> Thanks For Using My Application ",0
+
+;---------------- Variables -----------------------
+
+amount WORD 0
+count WORD 0
+strL DWORD ?
+
+rikshawcount WORD 0 ; rikshaw
+carcount WORD 0 ; car
+buscount WORD 0 ; bus
+
+;-------------------- MAIN Function ------------------------
+
+.code
+
+main PROC
+;--------------SETTING TEXT COLOUR-------------------------------
+mov eax,red+(black*16)
+ call settextcolor
+	call filing
+	call ShowMenu
+
+	call crlf
+	mov  edx,OFFSET final
+	call WriteString
+call crlf
+exit
+main ENDP
+
+;------------------------------------------------------------
+
+
+
+filing PROC
+    ; OPEN FILE IN APPEND MODE
+    mov edx, OFFSET filename
+    invoke CreateFile, ADDR filename, FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    mov fileHandle, eax
+
+    ; Check for errors in opening the file
+    cmp eax, INVALID_HANDLE_VALUE
+    je fileError
+
+    ; Set file pointer to the end of the file
+    invoke SetFilePointer, fileHandle, 0, NULL, FILE_END
+
+    mov edx, OFFSET str2
+    call WriteString
+
+    ; Read input from buffer and write to file
+    mov eax, fileHandle
+    mov edx, OFFSET buffer
+    mov ecx, BUFFER_SIZE
+    call ReadString
+    mov strL, eax
+
+    ; WRITE TO FILE
+    mov eax, fileHandle
+    mov edx, OFFSET buffer
+    mov ecx, strL
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+
+
+    ; Close file
+    invoke CloseHandle, fileHandle
+    ret
+
+fileError:
+    mov edx, OFFSET str1
+    call WriteString
+    ret
+filing ENDP
+
+
+
+ShowMenu PROC
+	
+	call crlf
+	mov edx,offset p4
+	call writestring
+	
+	call crlf
+	mov  edx,OFFSET menu ; Display Menu
+	call WriteString
+	
+	call crlf
+	call crlf
+	mov edx,offset Choose
+	call writestring	; CHOICE :
+	call ReadInt
+
+	call select
+	ret 
+
+ShowMenu endp
+
+;-----------------------------------------------------------------------
+
+select proc
+
+	cmp eax,0
+	je clear
+	jmp start
+
+clear:
+	mov ebx,offset m1
+	mov edx,offset m2
+	call MsgBox
+	call crlf
+	call clrscr
+	call ShowMenu
+start:
+	cmp  eax,1
+	jne  L1
+	
+	call crlf
+	call rikshaw
+L1:
+	cmp  eax,2	
+	jne  L2
+	
+	call crlf
+	call car
+L2:
+	cmp  eax,3	
+	jne   L3
+	
+	call crlf
+	call bus	
+
+L3:
+	cmp  eax,4	
+	jne   L4
+	
+	call crlf
+	call rec
+
+L4:
+	cmp  eax,5	
+	jne   L5
+	
+	call crlf
+	call del
+
+L5:	
+	cmp eax,6
+	jne L6
+
+	call crlf
+	call rem
+	
+L6:
+	cmp eax,7
+	jne quit
+
+	call crlf
+	jmp end_
+
+quit:
+	call crlf
+	mov edx,offset msg1
+	call writestring
+	call crlf
+	call crlf
+	call WaitMsg
+	call clrscr
+	call ShowMenu
+end_:
+ret
+select endp
+
+;-----------------------------------------------------------------------
+
+rikshaw PROC		
+
+	mov edx,offset p2
+	call writeString
+	mov edx,OFFSET msg2
+	call WriteString
+
+	cmp count,9
+	ja L1
+
+	mov ax,1
+
+	call crlf
+	mov edx,offset p1
+	call writeString
+	call writeDec
+
+	add amount,ax
+	mov dx,0
+	mov bx,10
+	mov cx,0
+
+inc count
+inc rikshawcount
+
+call crlf
+mov edx,offset p3
+call writeString
+mov ax,count
+call writeDec
+
+
+call crlf
+call waitmsg
+call crlf 
+call clrscr
+call ShowMenu
+	
+jmp end_
+
+L1:
+
+call crlf
+call crlf
+mov edx,offset msg0
+call writeString
+call crlf
+call crlf
+call WaitMsg
+call clrscr
+call ShowMenu
+
+end_:
+ret 
+rikshaw endp
+
+;-----------------------------------------------------------------------
+
+car proc
+
+	mov edx,offset p2
+	call writeString
+	mov edx,OFFSET msg3
+	call WriteString
+
+	cmp count,9
+	ja L1
+
+	mov ax,2
+
+	call crlf
+	mov edx,offset p1
+	call writeString
+	call writeDec
+
+	add amount,ax
+	mov dx,0
+	mov bx,10
+	mov cx,0
+
+inc count
+inc carcount
+
+call crlf
+mov edx,offset p3
+call writeString
+mov ax,count
+call writeDec
+
+call crlf
+
+call crlf
+call waitmsg
+call crlf
+call clrscr
+call ShowMenu
+
+jmp end_
+
+L1:
+
+call crlf
+call crlf
+mov edx,offset msg0
+call writeString
+call crlf
+call crlf
+call WaitMsg
+call clrscr
+call ShowMenu
+
+end_:
+ret 
+
+car endp
+
+;-----------------------------------------------------------------------
+
+bus proc
+
+	mov edx,offset p2
+	call writeString
+	mov edx,OFFSET msg4
+	call WriteString
+
+	cmp count,9
+	ja L1
+
+	mov ax,3
+
+	call crlf
+	mov edx,offset p1
+	call writeString
+	call writeDec
+
+	add amount,ax
+	mov dx,0
+	mov bx,10
+	mov cx,0
+
+inc count
+inc buscount
+
+call crlf
+mov edx,offset p3
+call writeString
+mov ax,count
+call writeDec
+
+
+call crlf
+call waitmsg
+call crlf
+call clrscr
+call ShowMenu
+
+jmp end_
+
+L1:
+
+call crlf
+call crlf
+mov edx,offset msg0
+call writeString
+call crlf
+call crlf
+call WaitMsg
+call clrscr
+call ShowMenu
+
+end_:
+ret 
+
+bus endp
+
+;-----------------------------------------------------------------------
+
+rec proc
+	
+	mov edx,OFFSET msg5
+	call WriteString
+
+	call crlf
+	call crlf
+
+	mov edx,offset msg6
+	call writeString
+	mov ax,amount
+	call writeDec
+
+	call crlf
+	mov edx,offset msg7
+	call writeString
+	mov ax,count
+	
+	call writeDec
+
+	call crlf
+	mov edx,offset msg8
+	call writeString
+	mov ax,rikshawcount
+	call writeDec
+
+	call crlf
+	mov edx,offset msg9
+	call writeString
+	mov ax,carcount
+	call writeDec
+
+	call crlf
+	mov edx,offset msg10
+	call writeString
+	mov ax,buscount
+	call writeDec
+
+	;;;;;;;;;;;;;;;;;;;;;; ; OPEN FILE IN APPEND MODE;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	  
+    mov edx, OFFSET filename
+    invoke CreateFile, ADDR filename, FILE_APPEND_DATA, FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL
+    mov fileHandle, eax
+
+
+
+    ; WRITE TO FILE
+
+	;---------------moving amount
+	mov eax,filehandle
+	mov edx,offset msg6
+	mov ecx,sizeof msg6
+	call Writetofile
+
+	
+	
+    mov eax, fileHandle
+    mov edx,offset amount 
+	
+    mov ecx,2 ;sizeof amount
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+	sub amount,48
+
+	;---- count of total vehical
+
+	mov eax,filehandle
+	mov edx,offset msg7
+	mov ecx,sizeof msg7
+	call Writetofile
+
+	;mov ebx,DWORD PTR count
+	;add ebx,48
+	add count,48
+	;mov amount,word ptr ebx
+    mov eax, fileHandle
+    mov edx,offset count 
+	
+    mov ecx,2 ;sizeof count
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+	sub count,48
+	;---- count of rikshaw
+
+	mov eax,filehandle
+	mov edx,offset msg8
+	mov ecx,sizeof msg8
+	call Writetofile
+
+	;mov ebx,DWORD PTR rikshawcount
+	;add ebx,48
+	add rikshawcount,48
+	;mov rikshawcount,word ptr ebx
+    mov eax, fileHandle
+    mov edx,offset rikshawcount
+	
+    mov ecx,2 ;sizeof rikshawcount
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+	sub rikshawcount,48
+
+	;---- count of car
+
+	mov eax,filehandle
+	mov edx,offset msg9
+	mov ecx,sizeof msg9
+	call Writetofile
+
+	;mov ebx,DWORD PTR carcount
+	;add ebx,48
+	add carcount,48
+	;mov carcount,word ptr ebx
+    mov eax, fileHandle
+    mov edx,offset carcount
+	
+    mov ecx,2 ;sizeof carcount
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+
+	sub carcount,48
+	;---- count of bus
+
+	mov eax,filehandle
+	mov edx,offset msg10
+	mov ecx,sizeof msg10
+	call Writetofile
+
+	;mov ebx,DWORD PTR buscount
+	;add ebx,48
+	add buscount,48
+	;mov buscount,word ptr ebx
+    mov eax, fileHandle
+    mov edx,offset buscount
+	
+    mov ecx,2 ;sizeof buscount
+    call WriteToFile
+	mov eax, fileHandle
+	mov edx,offset linechange
+	mov ecx,1
+	call WriteToFile
+	sub buscount,48
+
+    ; Close file
+    invoke CloseHandle, fileHandle
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	call crlf
+	call crlf
+	call WaitMsg
+	call clrscr
+
+	call ShowMenu
+
+
+ret 
+rec endp
+
+;-----------------------------------------------------------------------
+
+del proc
+
+	mov eax,0
+	mov ebx,0
+	clc
+	mov edx,0
+
+	mov count,0
+	mov amount,0
+
+	mov rikshawcount,0
+	mov carcount,0
+	mov buscount,0
+
+	call crlf
+
+	mov edx,offset msg12
+	call writeString
+	call crlf
+	call crlf
+	call waitmsg
+	call clrscr
+	call crlf
+	call ShowMenu
+	ret 
+del endp
+
+;-----------------------------------------------------------------------
+
+rem PROC
+
+call clrscr
+call crlf
+
+mov edx,offset my0
+call WriteString
+mov edx,offset Choose
+call crlf
+call crlf
+call WriteString
+call readint
+
+cmp eax,1
+jne L1
+
+cmp rikshawcount,0
+je err
+
+dec count
+dec rikshawcount
+sub amount,1
+jmp quit
+
+L1:
+
+cmp eax,2
+jne L2
+
+cmp carcount,0
+je err
+
+dec count
+dec carcount
+sub amount,2
+jmp quit
+
+L2:
+
+cmp eax,3
+jne L3
+
+cmp buscount,0
+je err
+
+dec count
+dec buscount
+sub amount,3
+jmp quit
+
+L3:
+
+cmp eax,4
+je last
+jmp uff
+
+uff:
+
+call crlf
+mov edx,offset msg1
+call writeString
+jmp now
+
+err:
+
+call crlf
+mov edx,offset my4 ; Vehicle isn't Parked
+call writeString
+call crlf
+call crlf
+call waitmsg
+call rem
+
+quit:
+
+call crlf
+call crlf
+mov edx,offset my3 ; REMOVED Vehicle
+call WriteString
+
+now:
+
+call crlf
+call crlf
+call waitmsg
+call rem
+
+last:
+
+call crlf
+call crlf
+call waitmsg
+call crlf
+call crlf
+call clrscr
+call ShowMenu
+ret
+rem ENDP
+
+;-----------------------------------------------------------------------
+end main
