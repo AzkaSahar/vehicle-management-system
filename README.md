@@ -1,3 +1,5 @@
+![Language](https://img.shields.io/badge/Language-Irvine32-blue)
+
 # vehicle-management-system
 The Vehicle Management System is a software solution developed using Assembly language with Irvine32.inc. Its primary aim is to efficiently manage andtrack vehicles within a designated area. This system provides a user-friendly interface through a menu-driven approach and utilizes robust file handling mechanisms, including append mode, to maintain and update vehicle records seamlessly.
 # 1. File Handling with Append Mode
